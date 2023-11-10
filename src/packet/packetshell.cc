@@ -94,10 +94,9 @@ void PacketShell<FerryQueueType>::start_uplink( const string & shell_prefix,
                     dns_outside_.tcp_listener().local_address() };
 
             dns_inside_.register_handlers( inner_ferry );
-
             /* run dnsmasq as local caching nameserver */
-            inner_ferry.add_child_process( start_dnsmasq( {
-                        "-S", dns_inside_.udp_listener().local_address().str( "#" ) } ) );
+            //inner_ferry.add_child_process( start_dnsmasq( {
+            //            "-S", dns_inside_.udp_listener().local_address().str( "#" ) } ) );
 
             /* Fork again after dropping root privileges */
             drop_privileges();
