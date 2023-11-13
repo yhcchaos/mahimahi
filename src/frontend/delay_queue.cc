@@ -9,7 +9,7 @@ using namespace std;
 
 void DelayQueue::read_packet( const string & contents )
 {
-    packet_queue_.emplace( timestamp() + delay_ms_, contents );
+    packet_queue_.emplace( timestamp() + delay_ms_ * 1000, contents );
 }
 
 void DelayQueue::write_packets( FileDescriptor & fd )

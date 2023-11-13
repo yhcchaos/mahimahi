@@ -18,7 +18,7 @@ class BinnedLiveGraph
 private:
     Graph graph_;
 
-    unsigned int bin_width_ms_;
+    unsigned int bin_width_us_;
     std::vector<int> value_this_bin_;
     uint64_t current_bin_;
     double multiplier_;
@@ -42,7 +42,7 @@ public:
     BinnedLiveGraph( const std::string & name, const Graph::StylesType & styles,
                      const std::string & y_label,
                      const double multiplier, const bool rate_quantity,
-                     const unsigned int bin_width_ms,
+                     const unsigned int bin_width_us,
                      const std::function<void(int,int&)> initialize_new_bin );
     ~BinnedLiveGraph();
 

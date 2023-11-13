@@ -37,12 +37,12 @@ bool IIDLoss::drop_packet( const string & packet __attribute((unused)) )
     return drop_dist_( prng_ );
 }
 
-static const double MS_PER_SECOND = 1000.0;
+static const double US_PER_SECOND = 1000000.0;
 
 StochasticSwitchingLink::StochasticSwitchingLink( const double mean_on_time, const double mean_off_time )
     : link_is_on_( false ),
-      on_process_( 1.0 / (MS_PER_SECOND * mean_off_time) ),
-      off_process_( 1.0 / (MS_PER_SECOND * mean_on_time) ),
+      on_process_( 1.0 / (US_PER_SECOND * mean_off_time) ),
+      off_process_( 1.0 / (US_PER_SECOND * mean_on_time) ),
       next_switch_time_( timestamp() )
 {}
 
@@ -84,8 +84,8 @@ bool StochasticSwitchingLink::drop_packet( const string & packet __attribute((un
 
 PeriodicSwitchingLink::PeriodicSwitchingLink( const double on_time, const double off_time )
     : link_is_on_( false ),
-      on_time_( bound( MS_PER_SECOND * on_time ) ),
-      off_time_( bound( MS_PER_SECOND * off_time ) ),
+      on_time_( bound( US_PER_SECOND * on_time ) ),
+      off_time_( bound( US_PER_SECOND * off_time ) ),
       next_switch_time_( timestamp() )
 {
   if ( on_time_ == 0 and off_time_ == 0 ) {

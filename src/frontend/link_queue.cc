@@ -44,15 +44,15 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
             throw runtime_error( filename + ": invalid empty line" );
         }
 
-        const uint64_t ms = myatoi( line );
+        const uint64_t us = myatoi( line );
 
         if ( not schedule_.empty() ) {
-            if ( ms < schedule_.back() ) {
+            if ( us < schedule_.back() ) {
                 throw runtime_error( filename + ": timestamps must be monotonically nondecreasing" );
             }
         }
 
-        schedule_.emplace_back( ms );
+        schedule_.emplace_back( us );
     }
 
     if ( schedule_.empty() ) {
@@ -73,8 +73,8 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
         *log_ << "# mahimahi mm-link (" << link_name << ") [" << filename << "] > " << logfile << endl;
         *log_ << "# command line: " << command_line << endl;
         *log_ << "# queue: " << packet_queue_->to_string() << endl;
-        *log_ << "# init timestamp: " << initial_timestamp() << endl;
-        *log_ << "# base timestamp: " << base_timestamp_ << endl;
+        *log_ << "# init timestamp: " << initial_timestamp() << "us" << endl;
+        *log_ << "# base timestamp: " << base_timestamp_ << "us" << endl;
         const char * prefix = getenv( "MAHIMAHI_SHELL_PREFIX" );
         if ( prefix ) {
             *log_ << "# mahimahi config: " << prefix << endl;
@@ -97,7 +97,7 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
     if ( graph_delay ) {
         delay_graph_.reset( new BinnedLiveGraph( link_name + " delay [" + filename + "]",
                                                  { make_tuple( 0.0, 0.25, 0.0, 1.0, false ) },
-                                                 "queueing delay (ms)",
+                                                 "queueing delay (us)",
                                                  1, false, 250,
                                                  [] ( int, int & x ) { x = -1; } ) );
     }
