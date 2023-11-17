@@ -195,7 +195,8 @@ int PacketShell<FerryQueueType>::Ferry::loop( FerryQueueType & ferry_queue,
                                 },
                                 [&] () { return ferry_queue.finished(); } ) );
 
-    return internal_loop( [&] () { return ferry_queue.wait_time(); } );
+    //return internal_loop( [&] () { return ferry_queue.wait_time(); } );
+    return internal_loop( [&] () { return ferry_queue.wait_time() / 1000; } ); //ms -> us
 }
 
 struct TemporaryEnvironment

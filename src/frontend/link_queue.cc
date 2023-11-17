@@ -8,7 +8,8 @@
 #include "util.hh"
 #include "ezio.hh"
 #include "abstract_packet_queue.hh"
-
+//#include <bitset>
+//#include <iomanip>
 using namespace std;
 
 LinkQueue::LinkQueue( const string & link_name, const string & filename, const string & logfile,
@@ -44,15 +45,15 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
             throw runtime_error( filename + ": invalid empty line" );
         }
 
-        const uint64_t ms = myatoi( line );
+        const uint64_t us = myatoi( line );
 
         if ( not schedule_.empty() ) {
-            if ( ms < schedule_.back() ) {
+            if ( us < schedule_.back() ) {
                 throw runtime_error( filename + ": timestamps must be monotonically nondecreasing" );
             }
         }
 
-        schedule_.emplace_back( ms );
+        schedule_.emplace_back( us );
     }
 
     if ( schedule_.empty() ) {
@@ -103,11 +104,23 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
     }
 }
 
-void LinkQueue::record_arrival( const uint64_t arrival_time, const size_t pkt_size )
+void LinkQueue::record_arrival( const uint64_t arrival_time, const size_t pkt_size)//, string contents)
 {
     /* log it */
     if ( log_ ) {
         *log_ << arrival_time << " + " << pkt_size << endl;
+        /*
+        *log_ << "contents: " << endl;
+        for (size_t i = 1; i < contents.size()+1; i++) {
+            char c = contents[i];
+            std::bitset<8> binaryRepresentation(c);
+            *log_ << std::setw(8) << std::setfill('0') << binaryRepresentation.to_string() << ' ';
+            if(i % 4 == 0){
+                *log_ << endl;
+            }
+        }
+        *log_ << endl;
+        */
     }
 
     /* meter it */
@@ -143,6 +156,18 @@ void LinkQueue::record_departure( const uint64_t departure_time, const QueuedPac
     if ( log_ ) {
         *log_ << departure_time << " - " << packet.contents.size()
               << " " << departure_time - packet.arrival_time << endl;
+        /*
+        *log_ << "contents: " << endl;
+        for (size_t i = 1; i < packet.contents.size()+1; i++) {
+            char c = packet.contents[i];
+            std::bitset<8> binaryRepresentation(c);
+            *log_ << std::setw(8) << std::setfill('0') << binaryRepresentation.to_string() << ' ';
+            if(i % 4 == 0){
+                *log_ << endl;
+            }
+        }
+        *log_ << endl;
+        */
     }
 
     /* meter the delivery */
@@ -151,21 +176,21 @@ void LinkQueue::record_departure( const uint64_t departure_time, const QueuedPac
     }
 
     if ( delay_graph_ ) {
-        delay_graph_->set_max_value_now( 0, departure_time - packet.arrival_time );
+        delay_graph_->set_max_value_now( 0, (departure_time - packet.arrival_time) / 1000 );
     }    
 }
 
 void LinkQueue::read_packet( const string & contents )
 {
     const uint64_t now = timestamp();
-
+    
     if ( contents.size() > PACKET_SIZE ) {
         throw runtime_error( "packet size is greater than maximum" );
     }
 
     rationalize( now );
 
-    record_arrival( now, contents.size() );
+    record_arrival( now, contents.size() );//, contents );
 
     unsigned int bytes_before = packet_queue_->size_bytes();
     unsigned int packets_before = packet_queue_->size_packets();

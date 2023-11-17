@@ -13,7 +13,7 @@ using namespace std;
 int main( int argc, char *argv[] )
 {
     try {
-        const bool passthrough_until_signal = getenv( "MAHIMAHI_PASSTHROUGH_UNTIL_SIGNAL" );
+        const bool passthrough_until_signal = getenv( "MAHIMAHI_PASSTHROUGH_UNTIL_SIGNAL" ); //false
 
         /* clear environment while running as root */
         char ** const user_environment = environ;

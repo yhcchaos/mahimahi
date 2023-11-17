@@ -19,7 +19,7 @@ BinnedLiveGraph::BinnedLiveGraph( const string & name,
     : graph_( 640, 480, name, 0, 1, styles, "time (s)", y_label ),
       bin_width_ms_( bin_width_ms ),
       value_this_bin_( styles.size() ),
-      current_bin_( timestamp() / bin_width_ms_ ),
+      current_bin_( timestamp_ms() / bin_width_ms_ ),
       multiplier_( multiplier ),
       rate_quantity_( rate_quantity ),
       mutex_(),
@@ -73,7 +73,7 @@ uint64_t BinnedLiveGraph::advance( void )
 {
     unique_lock<mutex> ul { mutex_ };
 
-    const uint64_t now = timestamp();
+    const uint64_t now = timestamp_ms();
 
     const uint64_t now_bin = now / bin_width_ms_;
 
