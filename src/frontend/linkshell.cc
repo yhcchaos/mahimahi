@@ -9,7 +9,7 @@
 #include "pie_packet_queue.hh"
 #include "link_queue.hh"
 #include "packetshell.cc"
-
+#include <signal.h>
 using namespace std;
 
 void usage_error( const string & program_name )
@@ -18,6 +18,8 @@ void usage_error( const string & program_name )
     cerr << endl;
     cerr << "Options = --once" << endl;
     cerr << "          --uplink-log=FILENAME --downlink-log=FILENAME" << endl;
+    cerr << "          --actor_id=ACTOR_ID" << endl;
+    cerr << "          --episode_id=EPISODE_ID" << endl;
     cerr << "          --meter-uplink --meter-uplink-delay" << endl;
     cerr << "          --meter-downlink --meter-downlink-delay" << endl;
     cerr << "          --meter-all" << endl;
@@ -91,6 +93,8 @@ int main( int argc, char *argv[] )
         const option command_line_options[] = {
             { "uplink-log",           required_argument, nullptr, 'u' },
             { "downlink-log",         required_argument, nullptr, 'd' },
+            { "actor_id",             required_argument, nullptr, 'c' },
+            { "episode_id",           required_argument, nullptr, 'e' },
             { "once",                       no_argument, nullptr, 'o' },
             { "meter-uplink",               no_argument, nullptr, 'm' },
             { "meter-downlink",             no_argument, nullptr, 'n' },
@@ -108,6 +112,7 @@ int main( int argc, char *argv[] )
         bool repeat = true;
         bool meter_uplink = false, meter_downlink = false;
         bool meter_uplink_delay = false, meter_downlink_delay = false;
+        int64_t actor_id = -1, episode_id = -1;
         string uplink_queue_type = "infinite", downlink_queue_type = "infinite",
                uplink_queue_args, downlink_queue_args;
 
@@ -123,6 +128,12 @@ int main( int argc, char *argv[] )
                 break;
             case 'd':
                 downlink_logfile = optarg;
+                break;
+            case 'c':
+                actor_id = strtol(optarg, nullptr, 10);
+                break;
+            case 'e':
+                episode_id = strtol(optarg, nullptr, 10);
                 break;
             case 'o':
                 repeat = false;
@@ -167,7 +178,7 @@ int main( int argc, char *argv[] )
         if ( optind + 1 >= argc ) {
             usage_error( argv[ 0 ] );
         }
-
+        std::cerr<<"mm-link gpid=" << getpgid(getpid()) << std::endl;
         const string uplink_filename = argv[ optind ];
         const string downlink_filename = argv[ optind + 1 ];
 
@@ -180,15 +191,14 @@ int main( int argc, char *argv[] )
                 command.push_back( argv[ i ] );
             }
         }
-
+        
         PacketShell<LinkQueue> link_shell_app( "link", user_environment, passthrough_until_signal );
 
         link_shell_app.start_uplink( "[link] ", command,
-                                     "Uplink", uplink_filename, uplink_logfile, repeat, meter_uplink, meter_uplink_delay,
+                                     "Uplink", uplink_filename, uplink_logfile, repeat, actor_id, episode_id, meter_uplink, meter_uplink_delay,
                                      get_packet_queue( uplink_queue_type, uplink_queue_args, argv[ 0 ] ),
                                      command_line );
-
-        link_shell_app.start_downlink( "Downlink", downlink_filename, downlink_logfile, repeat, meter_downlink, meter_downlink_delay,
+        link_shell_app.start_downlink( "Downlink", downlink_filename, downlink_logfile, repeat, -1, -1, meter_downlink, meter_downlink_delay,
                                        get_packet_queue( downlink_queue_type, downlink_queue_args, argv[ 0 ] ),
                                        command_line );
 

@@ -2,17 +2,32 @@
 
 #include <limits>
 #include <cassert>
-
+#include <signal.h>
 #include "link_queue.hh"
 #include "timestamp.hh"
 #include "util.hh"
 #include "ezio.hh"
 #include "abstract_packet_queue.hh"
-
+#include <time.h>
+#include <iostream>
 using namespace std;
 
+int64_t shm_id=-1;
+float* shm_bw_ptr_=nullptr;
+void sighandler(int sig){
+    if(shmdt((void*)shm_bw_ptr_)==-1){
+        perror("shmdt_mm_link:");
+        std::cerr << sig <<"shmdt_mm_link errno:"<< errno << std::endl;
+    }
+    if(shmctl(shm_id, IPC_RMID, 0)==-1){
+        perror("shmctl_mm_rm_link:");
+        std::cerr <<"shmctl_mm_rm_link errno:"<< errno << std::endl;
+    }
+    exit(1);
+}
 LinkQueue::LinkQueue( const string & link_name, const string & filename, const string & logfile,
-                      const bool repeat, const bool graph_throughput, const bool graph_delay,
+                      const bool repeat, int64_t actor_id, int64_t episode_id,
+                      const bool graph_throughput, const bool graph_delay,
                       unique_ptr<AbstractPacketQueue> && packet_queue,
                       const string & command_line )
     : next_delivery_( 0 ),
@@ -25,33 +40,56 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
       log_(),
       throughput_graph_( nullptr ),
       delay_graph_( nullptr ),
+      flag(false),
       repeat_( repeat ),
-      finished_( false )
+      finished_( false ),
+      time_bw_change()
 {
     assert_not_root();
-
     /* open filename and load schedule */
     ifstream trace_file( filename );
 
     if ( not trace_file.good() ) {
         throw runtime_error( filename + ": error opening for reading" );
     }
-
+    signal(SIGTERM, sighandler);
+    signal(SIGKILL, sighandler);
+    if(actor_id!=-1){
+        shm_id = shmget((actor_id << 20) | episode_id, 2*sizeof(float), IPC_CREAT | 0666);
+        shm_bw_ptr_ = (float*)shmat(shm_id, 0, 0);
+        if(shm_id == -1 || shm_bw_ptr_ == (float*)-1){
+            throw runtime_error("shared_memory in mm_link created failed");
+        }
+    }
     string line;
-
     while ( trace_file.good() and getline( trace_file, line ) ) {
         if ( line.empty() ) {
             throw runtime_error( filename + ": invalid empty line" );
         }
-
+        float bw = -1;
+        if(line[0]=='#'){
+            bw = myatof( line.substr(1) );
+            if(trace_file.good()){
+                getline(trace_file, line);
+            }
+            else{
+                break;
+            }
+        }
         const uint64_t ms = myatoi( line );
-
+        if(bw != -1 && shm_bw_ptr_!=nullptr){
+            if(time_bw_change.empty()){
+                shm_bw_ptr_[0]=ms;
+                shm_bw_ptr_[1]=bw;
+            }
+            time_bw_change[ms] = bw;
+        }
         if ( not schedule_.empty() ) {
             if ( ms < schedule_.back() ) {
                 throw runtime_error( filename + ": timestamps must be monotonically nondecreasing" );
             }
         }
-
+        
         schedule_.emplace_back( ms );
     }
 
@@ -171,7 +209,6 @@ void LinkQueue::read_packet( const string & contents )
     unsigned int packets_before = packet_queue_->size_packets();
 
     packet_queue_->enqueue( QueuedPacket( contents, now ) );
-
     assert( packet_queue_->size_packets() <= packets_before + 1 );
     assert( packet_queue_->size_bytes() <= bytes_before + contents.size() );
     
@@ -214,6 +251,11 @@ void LinkQueue::rationalize( const uint64_t now )
 {
     while ( next_delivery_time() <= now ) {
         const uint64_t this_delivery_time = next_delivery_time();
+
+        if(time_bw_change.find(this_delivery_time) != time_bw_change.end()){
+            shm_bw_ptr_[0] = this_delivery_time;
+            shm_bw_ptr_[1] = time_bw_change[this_delivery_time];
+        }
 
         /* burn a delivery opportunity */
         unsigned int bytes_left_in_this_delivery = PACKET_SIZE;

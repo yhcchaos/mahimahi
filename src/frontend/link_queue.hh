@@ -1,5 +1,5 @@
 /* -*-mode:c++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-
+#pragma GCC diagnostic ignored "-Weffc++"
 #ifndef LINK_QUEUE_HH
 #define LINK_QUEUE_HH
 
@@ -8,11 +8,11 @@
 #include <string>
 #include <fstream>
 #include <memory>
-
+#include <sys/shm.h>
 #include "file_descriptor.hh"
 #include "binned_livegraph.hh"
 #include "abstract_packet_queue.hh"
-
+#include <unordered_map>
 class LinkQueue
 {
 private:
@@ -30,10 +30,10 @@ private:
     std::unique_ptr<std::ofstream> log_;
     std::unique_ptr<BinnedLiveGraph> throughput_graph_;
     std::unique_ptr<BinnedLiveGraph> delay_graph_;
-
+    bool flag;
     bool repeat_;
     bool finished_;
-
+    std::unordered_map<uint64_t, float> time_bw_change;
     uint64_t next_delivery_time( void ) const;
 
     void use_a_delivery_opportunity( void );
@@ -48,7 +48,7 @@ private:
 
 public:
     LinkQueue( const std::string & link_name, const std::string & filename, const std::string & logfile,
-               const bool repeat, const bool graph_throughput, const bool graph_delay,
+               const bool repeat, int64_t actor_id, int64_t episode_id, const bool graph_throughput, const bool graph_delay,
                std::unique_ptr<AbstractPacketQueue> && packet_queue,
                const std::string & command_line );
 
