@@ -9,6 +9,8 @@
 #include "ezio.hh"
 #include "abstract_packet_queue.hh"
 #include <time.h>
+#include <string>
+#include <sstream>
 #include <iostream>
 using namespace std;
 
@@ -17,11 +19,11 @@ float* shm_bw_ptr_=nullptr;
 void sighandler(int sig){
     if(shmdt((void*)shm_bw_ptr_)==-1){
         perror("shmdt_mm_link:");
-        std::cerr << sig <<"shmdt_mm_link errno:"<< errno << std::endl;
+        cerr << sig <<"shmdt_mm_link errno:"<< errno << endl;
     }
     if(shmctl(shm_id, IPC_RMID, 0)==-1){
         perror("shmctl_mm_rm_link:");
-        std::cerr <<"shmctl_mm_rm_link errno:"<< errno << std::endl;
+        cerr <<"shmctl_mm_rm_link errno:"<< errno << endl;
     }
     exit(1);
 }
@@ -62,37 +64,42 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
         }
     }
     string line;
+
     while ( trace_file.good() and getline( trace_file, line ) ) {
         if ( line.empty() ) {
             throw runtime_error( filename + ": invalid empty line" );
         }
-        float bw = -1;
-        if(line[0]=='#'){
-            bw = myatof( line.substr(1) );
+        while(line[0]=='#'){
+            string time_bw = line.substr(1);
+            istringstream iss(time_bw);
+            string tmp;
+            iss >> tmp;
+            uint64_t timeChange = myatoi(tmp);
+            iss >> tmp;
+            float bw = myatof(tmp);
+            if(shm_bw_ptr_!=nullptr){
+                if(time_bw_change.empty()){
+                    shm_bw_ptr_[0]=base_timestamp_ + timeChange;
+                    shm_bw_ptr_[1]=bw;
+                }
+                time_bw_change[timeChange] = bw;
+            }
             if(trace_file.good()){
                 getline(trace_file, line);
             }
             else{
                 break;
             }
+
         }
         const uint64_t ms = myatoi( line );
-        if(bw != -1 && shm_bw_ptr_!=nullptr){
-            if(time_bw_change.empty()){
-                shm_bw_ptr_[0]=ms;
-                shm_bw_ptr_[1]=bw;
-            }
-            time_bw_change[ms] = bw;
-        }
         if ( not schedule_.empty() ) {
             if ( ms < schedule_.back() ) {
                 throw runtime_error( filename + ": timestamps must be monotonically nondecreasing" );
             }
         }
-        
         schedule_.emplace_back( ms );
     }
-
     if ( schedule_.empty() ) {
         throw runtime_error( filename + ": no valid timestamps found" );
     }
@@ -201,8 +208,8 @@ void LinkQueue::read_packet( const string & contents )
         throw runtime_error( "packet size is greater than maximum" );
     }
 
-    rationalize( now );
 
+    rationalize( now );
     record_arrival( now, contents.size() );
 
     unsigned int bytes_before = packet_queue_->size_bytes();
@@ -251,7 +258,6 @@ void LinkQueue::rationalize( const uint64_t now )
 {
     while ( next_delivery_time() <= now ) {
         const uint64_t this_delivery_time = next_delivery_time();
-
         if(time_bw_change.find(this_delivery_time) != time_bw_change.end()){
             shm_bw_ptr_[0] = this_delivery_time;
             shm_bw_ptr_[1] = time_bw_change[this_delivery_time];
