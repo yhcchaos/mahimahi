@@ -27,6 +27,12 @@ TunDevice::TunDevice( const string & name,
                      [] ( ifreq &ifr ) { ifr.ifr_flags = IFF_TUN; } );
 
     assign_address( name, addr, peer );
+	/*
+	 * Soheil: Bug! The default value of txqueuelen (500) is very low!
+	 * With the default setting we can only reach upto 300Mbps for a 20ms RTT (75Mbps for a 80ms and so on).
+	 * For a 1Gbps mRTT=200ms link ==> we need at least BDP = 16,666pkt ==> We set txqueuelen=20,000
+	 */
+    run( { IP, "link", "set", "dev", name, "txqueuelen",TXQUEUELEN} );
 }
 
 void interface_ioctl( FileDescriptor & fd, const unsigned long request,
@@ -88,7 +94,13 @@ VirtualEthernetPair::VirtualEthernetPair( const string & outside_name, const str
     name_check( outside_name );
     name_check( inside_name );
 
-    run( { IP, "link", "add", outside_name, "type", "veth", "peer", "name", inside_name } );
+//    run( { IP, "link", "add", outside_name, "type", "veth", "peer", "name", inside_name } );
+	/*
+	 * Soheil: Bug! The default value of txqueuelen (500) is very low!
+	 * With the default setting we can only reach upto 300Mbps for a 20ms RTT (75Mbps for a 80ms and so on).
+	 * For a 1Gbps mRTT=200ms link ==> we need at least BDP = 16,666pkt ==> We set txqueuelen=20,000
+	 */
+	run( { IP, "link", "add", outside_name, "txqueuelen",TXQUEUELEN, "type", "veth", "peer", "name", inside_name } );
 }
 
 VirtualEthernetPair::~VirtualEthernetPair()
