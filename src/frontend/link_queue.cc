@@ -57,7 +57,7 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
     signal(SIGTERM, sighandler);
     signal(SIGKILL, sighandler);
     if(actor_id!=-1){
-        shm_id = shmget((actor_id << 20) | episode_id, 2*sizeof(float), IPC_CREAT | 0666);
+        shm_id = shmget((actor_id << 28) | episode_id, 2*sizeof(float), IPC_CREAT | 0666);
         shm_bw_ptr_ = (float*)shmat(shm_id, 0, 0);
         if(shm_id == -1 || shm_bw_ptr_ == (float*)-1){
             throw runtime_error("shared_memory in mm_link created failed");
