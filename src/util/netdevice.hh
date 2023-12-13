@@ -13,7 +13,7 @@
 #include "address.hh"
 
 /*Soheil: For a 1Gbps mRTT=200ms link ==> we need at least BDP = 16,666pkt ==> We set txqueuelen=20,000*/
-#define TXQUEUELEN "5000"
+#define TXQUEUELEN "400000"
 
 /* general helpers */
 void interface_ioctl( FileDescriptor & fd, const unsigned long request,
