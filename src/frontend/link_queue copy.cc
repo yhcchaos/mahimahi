@@ -33,6 +33,7 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
                       unique_ptr<AbstractPacketQueue> && packet_queue,
                       const string & command_line )
     : next_delivery_( 0 ),
+      total_schedule_(),
       schedule_(),
       base_timestamp_( timestamp() ),
       packet_queue_( move( packet_queue ) ),
@@ -69,29 +70,43 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
         if ( line.empty() ) {
             throw runtime_error( filename + ": invalid empty line" );
         }
-        while(line[0]=='#'){
+        if(line[0]=='#'){
             string time_bw = line.substr(1);
             istringstream iss(time_bw);
             string tmp;
             iss >> tmp;
-            uint64_t timeChange = myatoi(tmp)+base_timestamp_;
+            uint64_t timeChange = myatoull(tmp)+base_timestamp_;
             iss >> tmp;
-            float bw = myatof(tmp);
-            if(shm_bw_ptr_!=nullptr){
-                if(time_bw_change.empty()){
-                    shm_bw_ptr_[0]=timeChange;
-                    shm_bw_ptr_[1]=bw;
+            uint64_t bw = myatoull(tmp);
+            if(total_schedule_.find(bw)==total_schedule_.end()){
+                uint64_t send_packets = bw / 12;
+                vector<uint64_t> tmp_schedule;
+                for(uint64_t i=0;i<send_packets;i++){
+                    tmp_schedule.push_back(1);
                 }
-                time_bw_change[timeChange] = bw;
+                if(total_schedule_.size() == 0){
+                    schedule_ = tmp_schedule;
+                }
+                total_schedule_[bw] = tmp_schedule;
             }
+            if(time_bw_change.empty()){
+                //set the current schedule_ and bandwidth at the start time
+                if(shm_bw_ptr_!=nullptr){
+                    shm_bw_ptr_[0]=timeChange;
+                    shm_bw_ptr_[1]=static_cast<float>(bw);
+                }
+            }
+            time_bw_change[timeChange] = bw;
+            /*
             if(trace_file.good()){
                 getline(trace_file, line);
             }
             else{
                 break;
             }
-
+            */
         }
+        /*
         const uint64_t ms = myatoi( line );
         if ( not schedule_.empty() ) {
             if ( ms < schedule_.back() ) {
@@ -99,7 +114,9 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
             }
         }
         schedule_.emplace_back( ms );
+        */
     }
+    std::cerr << "schedule_.size()=" << schedule_.size() << std::endl;
     if ( schedule_.empty() ) {
         throw runtime_error( filename + ": no valid timestamps found" );
     }
@@ -259,8 +276,13 @@ void LinkQueue::rationalize( const uint64_t now )
     while ( next_delivery_time() <= now ) {
         const uint64_t this_delivery_time = next_delivery_time();
         if(time_bw_change.find(this_delivery_time) != time_bw_change.end()){
-            shm_bw_ptr_[0] = this_delivery_time;
-            shm_bw_ptr_[1] = time_bw_change[this_delivery_time];
+            uint64_t bw = time_bw_change[this_delivery_time];
+            if(shm_bw_ptr_!=nullptr){
+                shm_bw_ptr_[0] = this_delivery_time;
+                shm_bw_ptr_[1] = bw;
+            }
+            schedule_ = total_schedule_[bw];
+            next_delivery_ = 0;
         }
 
         /* burn a delivery opportunity */
