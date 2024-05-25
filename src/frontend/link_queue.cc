@@ -79,6 +79,13 @@ LinkQueue::LinkQueue( const string & link_name, const string & filename, const s
         if ( prefix ) {
             *log_ << "# mahimahi config: " << prefix << endl;
         }
+        +        /*
+         * Soheil: To sync up the Agent's perception of time and the current time on the trace
+         */
+        std::unique_ptr<std::ofstream> log__;
+        log__.reset(new ofstream(logfile+"_init_timestamp"));
+        *log__ << initial_timestamp()+base_timestamp_ << endl;
+
     }
 
     /* create graphs if called for */
